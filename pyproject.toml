@@ -44,9 +44,20 @@ classifiers = [
     "Environment :: X11 Applications :: Qt",
     "Typing :: Typed",
 ]
-keywords = ["Verilog", "tool", "SystemVerilog"]
+keywords = [
+    "Verilog",
+    "tool",
+    "SystemVerilog",
+    "JasperGold",
+    "SVP",
+    "Security",
+    "Verification",
+    "Formal",
+    "Property",
+    "Assertion"
+]
 
-dependencies = ["antlr4-python3-runtime", "attrs"]
+dependencies = []
 requires-python = ">=3.8"
 
 [project.urls]
@@ -54,4 +65,4 @@ Homepage = "https://github.com/RISCY-Lib/mavsec"
 Documentation = "https://github.com/RISCY-Lib/mavsec/blob/main/README.md"
 
 [project.optional-dependencies]
-dev = ["flake8", "mypy", "tox", "pytest", "antlr4-tools", "setuptools"]
+dev = ["flake8", "mypy", "tox", "pytest", "setuptools"]
