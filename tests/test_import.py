@@ -16,5 +16,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
 
-__version__: str = "0.0.1a2"
-__author__: str = "RISCY-Lib Contributors"
+import mavsec
+
+
+def test_import():
+    assert isinstance(mavsec.__version__, str)
+    assert isinstance(mavsec.__author__, str)
