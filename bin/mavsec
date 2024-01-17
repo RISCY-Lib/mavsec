@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+
+from PyQt5.QtWidgets import QApplication, QWidget
+
+
+if __name__ == '__main__':
+    app = QApplication([])
+    window = QWidget()
+    window.show()
+    exit(app.exec_())
