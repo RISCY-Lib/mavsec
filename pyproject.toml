@@ -57,7 +57,7 @@ keywords = [
     "Assertion"
 ]
 
-dependencies = ["PyQt5"]
+dependencies = ["pyside6"]
 requires-python = ">=3.8"
 
 [project.urls]

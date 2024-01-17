@@ -16,8 +16,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
 
-from __future__ import annotations
+import sys
+from PySide6 import QtWidgets
+from PySide6.QtCore import QObject
+from mavsec._gui.mavsec_ui import Ui_MainWindow
 
-# Package Information
-__version__: str = "0.0.1a3"
-__author__: str = "RISCY-Lib Contributors"
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+
+
+if __name__ == '__main__':
+    print("test")
+
+    app = QtWidgets.QApplication([])
+
+    window = MainWindow()
+    window.show()
+
+    sys.exit(app.exec())
