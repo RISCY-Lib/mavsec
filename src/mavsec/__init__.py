@@ -16,5 +16,5 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
 
-__version__: str = "0.0.1a2"
+__version__: str = "0.0.1a3"
 __author__: str = "RISCY-Lib Contributors"
