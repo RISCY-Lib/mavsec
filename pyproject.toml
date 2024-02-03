@@ -65,4 +65,4 @@ Homepage = "https://github.com/RISCY-Lib/mavsec"
 Documentation = "https://github.com/RISCY-Lib/mavsec/blob/main/README.md"
 
 [project.optional-dependencies]
-dev = ["flake8", "mypy", "tox", "pytest", "setuptools"]
+dev = ["flake8", "mypy", "tox", "pytest", "setuptools", "sphinx", "sphinx-rtd-theme"]
