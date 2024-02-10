@@ -36,7 +36,7 @@ version_info = [int(x) if x.isdigit() else x for x in re.split(r"\.|-", __versio
 # GUI Entry Point
 #####################################################################################
 def gui():
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication(sys.argv)
 
     window = MavSecMainWindow()
     window.show()
