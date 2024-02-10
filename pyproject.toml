@@ -57,7 +57,7 @@ keywords = [
     "Assertion"
 ]
 
-dependencies = ["pyside6"]
+dependencies = ["pyside6", "pyyaml", "tomli-w"]
 requires-python = ">=3.8"
 
 [project.urls]

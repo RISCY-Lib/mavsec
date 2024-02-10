@@ -1,0 +1,4 @@
+project:
+  description: This is an example project
+  name: example_project_yaml
+  version: 1.0.1

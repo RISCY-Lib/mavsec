@@ -1,0 +1,4 @@
+[project]
+name = "example_project_toml"
+version = "0.1.1"
+description = "An example project using toml"
