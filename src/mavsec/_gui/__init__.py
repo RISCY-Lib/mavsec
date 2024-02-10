@@ -15,3 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
+
+from __future__ import annotations
+
+from PySide6 import QtWidgets
+from mavsec._gui.mavsec_ui import Ui_MainWindow
+
+
+class MavSecMainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)

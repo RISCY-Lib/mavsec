@@ -20,15 +20,16 @@ from setuptools import setup
 
 import importlib.util
 import pathlib
-import sys
 
 _proj_root = pathlib.Path(__file__).parent
-_mavsec_spec = importlib.util.spec_from_file_location("mavsec", _proj_root.joinpath("src/mavsec/__init__.py"))
-mavsec = importlib.util.module_from_spec(_mavsec_spec)
-sys.modules["mavsec"] = mavsec
-_mavsec_spec.loader.exec_module(mavsec)
+_info_spec = importlib.util.spec_from_file_location(
+                                   "mavsec._info",
+                                   _proj_root.joinpath("src", "mavsec", "_info.py")
+                               )
+_info = importlib.util.module_from_spec(_info_spec)
+_info_spec.loader.exec_module(_info)
 
 if __name__ == "__main__":
   setup(
-    version=mavsec.__version__
+    version=_info.__version__
   )

@@ -9,7 +9,7 @@
 import mavsec._info as info
 from datetime import datetime
 
-project = 'mavsec'
+project = 'MavSec'
 copyright = f'{datetime.now().year}, {info.__author__}'
 author = info.__author__
 release = info.__version__
@@ -20,11 +20,12 @@ release = info.__version__
 extensions = [
   'sphinx.ext.autodoc',
   'sphinx.ext.autosummary',
+  'sphinx.ext.napoleon',
 ]
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = []
 
 
 
@@ -32,4 +33,4 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_static_path = []
