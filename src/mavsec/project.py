@@ -18,9 +18,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mavsec.schema import Schema
+from mavsec.properties import Property
 
 import pathlib
 
@@ -31,6 +32,7 @@ class Project(Schema):
 
     info: ProjectInfo
     """Information about the project."""
+    properties: list[Property] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict) -> Project:
@@ -63,6 +65,9 @@ class Project(Schema):
 
         if filename is not None:
             self.info.proj_file = filename
+
+        if self.info.proj_file is None:
+            raise ValueError("Project file not set.")
 
         filepath = pathlib.Path(self.info.proj_file)
 

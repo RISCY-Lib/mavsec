@@ -20,25 +20,10 @@ from __future__ import annotations
 from typing import ClassVar
 
 from dataclasses import dataclass, field
-import abc
 import enum
 
 
 AnyRtlPath = str
-
-
-@dataclass
-class Project:
-  name: str
-  """The name of the project."""
-  description: str
-  """A brief description of the project."""
-  version: str
-  """The version of the project file"""
-  signals: list[Signal] = field(default_factory=list)
-  """The list of signals of interest in the project."""
-  properties: list[Property] = field(default_factory=list)
-  """The list of properties of interest in the project."""
 
 
 class SignalType(enum.StrEnum):
@@ -67,90 +52,102 @@ class Signal:
 
 
 @dataclass
-class Property(abc.ABC):
+class PropertyType():
+
+  name: str
+  """The name of the property type."""
+  description: str
+  """A brief description of the property type."""
+  meta: list[str] = field(default_factory=list)
+  """The information needed to generate the property."""
+
+
+SecureKeyProperty = PropertyType(
+  "SecureKey",
+  "A property that ensures a given key is stored correctly.",
+  ["key_loc", "key_size", "public_bus"]
+)
+
+SecureKeyGenProperty = PropertyType(
+  "SecureKeyGen",
+  "A property that ensures a given generated key is stored correctly.",
+  ["public_key_loc", "key_size", "public_bus"]
+)
+
+SecureExternalMemoryProperty = PropertyType(
+  "SecureExternalMemory",
+  "A property that ensures a given external memory is secure."
+)
+
+SecureInternalStorageProperty = PropertyType(
+  "SecureInternalStorage",
+  "A property that ensures a given internal storage is not able to be accessed."
+)
+
+FaultTolerantFSMProperty = PropertyType(
+  "FaultTolerantFSM",
+  "A property that ensures a given FSM is fault tolerant."
+)
+
+
+@dataclass
+class Property():
   name: str
   """The name of the property."""
   description: str
   """A brief description of the property."""
-  signal: Signal
-  """The signal of interest in the property."""
+  meta: dict[str, str] = field(default_factory=dict)
+  """A dictionary of metadata for the property."""
+  ptype: PropertyType | str | None = None
+  """The type of the property."""
 
-  @abc.abstractmethod
+  property_types: ClassVar[list[PropertyType]] = [
+    SecureKeyProperty,
+    SecureKeyGenProperty,
+    SecureExternalMemoryProperty,
+    SecureInternalStorageProperty,
+    FaultTolerantFSMProperty
+  ]
+  """Available properties"""
+
+  def __post_init__(self):
+    if isinstance(self.ptype, str):
+      for ptype in self.property_types:
+        if ptype.name == self.ptype:
+          self.ptype = ptype
+          break
+      else:
+        raise ValueError(f"Property type {self.ptype} not found.")
+
+  def type_name(self) -> str:
+    """Gets the name of the property type."""
+    if isinstance(self.ptype, PropertyType):
+      return self.ptype.name
+    return str(self.ptype)
+
   def to_svp(self) -> str:
     """Converts the property to an SVP principle."""
-    pass
+    raise NotImplementedError()
+
+  @classmethod
+  def ptype_from_str(cls, prop: str) -> PropertyType:
+    """Gets a property type from a string."""
+    for ptype in cls.property_types:
+      if ptype.name == prop:
+        return ptype
+    raise ValueError(f"Property type {prop} not found.")
 
   @classmethod
   def from_dict(cls, d: str) -> Property:
     """Converts the SVP principle to a property."""
     raise NotImplementedError()
 
-
-@dataclass
-class KeyProperty(Property):
-  """A property that ensures that a given key is stored correctly."""
-
-  loc: Signal
-  """The location of the key."""
-
-  def to_svp(self) -> str:
-    raise NotImplementedError()
+  @classmethod
+  def available_types(cls) -> list[PropertyType]:
+    """Returns all the available property types."""
+    return cls.property_types
 
   @classmethod
-  def from_dict(cls, d: str) -> KeyProperty:
-    raise NotImplementedError()
-
-
-@dataclass
-class KeyGenerationProperty(KeyProperty):
-  """A property that ensures that a given generated key is stored correctly."""
-
-  def to_svp(self) -> str:
-    raise NotImplementedError()
-
-  @classmethod
-  def from_dict(cls, d: str) -> KeyGenerationProperty:
-    raise NotImplementedError()
-
-
-@dataclass
-class SecureExternalMemoryProperty(Property):
-  """A property that ensures that a given external memory is secure."""
-
-  def to_svp(self) -> str:
-    raise NotImplementedError()
-
-  @classmethod
-  def from_dict(cls, d: str) -> SecureExternalMemoryProperty:
-    raise NotImplementedError()
-
-
-@dataclass
-class SecureInternalStorageProperty(Property):
-  """A property that ensures that a given internal storage is secure."""
-
-  def to_svp(self) -> str:
-    raise NotImplementedError()
-
-  @classmethod
-  def from_dict(cls, d: str) -> SecureInternalStorageProperty:
-    raise NotImplementedError()
-
-
-@dataclass
-class FaultTolerantFSMProperty(Property):
-  """A property that ensures that a given FSM is fault tolerant."""
-
-  state: Signal
-  """The signal which is the state of the FSM"""
-  inputs: list[Signal]
-  """The list of signals which are the inputs of the FSM and should be tested for fault tolerance."""
-  outputs: list[Signal]
-  """The list of signals which are the outputs of the FSM and should be tested for fault tolerance."""
-
-  def to_svp(self) -> str:
-    raise NotImplementedError()
-
-  @classmethod
-  def from_dict(cls, d: str) -> FaultTolerantFSMProperty:
-    raise NotImplementedError()
+  def add_type(cls, ptype: PropertyType) -> None:
+    """Adds a property type to the available types."""
+    cls.property_types.append(ptype)

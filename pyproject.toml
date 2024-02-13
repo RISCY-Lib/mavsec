@@ -68,4 +68,7 @@ Documentation = "https://github.com/RISCY-Lib/mavsec/blob/main/README.md"
 mavsec = "mavsec:gui"
 
 [project.optional-dependencies]
-dev = ["flake8", "mypy", "tox", "pytest", "setuptools", "sphinx", "sphinx-rtd-theme"]
+dev = [
+    "flake8", "mypy", "tox", "pytest", "setuptools", "types-PyYAML",
+    "sphinx", "sphinx-rtd-theme"
+]

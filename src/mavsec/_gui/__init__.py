@@ -17,16 +17,21 @@
 #####################################################################################
 
 from __future__ import annotations
+from typing import Callable
+
+import contextlib
+import pathlib
 
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QMenuBar, QMenu, QTableWidget, QDockWidget, QWidget, QFormLayout,
-    QTextEdit, QLineEdit, QTabWidget, QFileDialog
+    QTextEdit, QLineEdit, QTabWidget, QFileDialog, QComboBox, QToolBar, QTableWidgetItem
 )
-from PySide6 import QtGui
+from PySide6 import QtGui, QtCore
 from PySide6.QtCore import Qt
 
-from mavsec import _info
+from mavsec import _info, properties
 from mavsec.project import Project, ProjectInfo
+from mavsec.properties import Property
 
 
 FILE_FILTERS = [
@@ -37,21 +42,197 @@ FILE_FILTERS = [
 ]
 
 
+####################################################################################################
+# Project Tab
+####################################################################################################
 class ProjectTab(QTableWidget):
-    def __init__(self, parent: QWidget, proj: Project | None = None):
+    """The project information pane"""
+    def __init__(
+                    self,
+                    parent: QWidget,
+                    proj: Project | None = None,
+                    pdock: PropertyDock | None = None
+                ):
         super().__init__(parent)
         self.setObjectName(u"properties_table")
 
-        columns = ["ID", "Name", "Type", "Description"]
+        self._pdock = pdock
+
+        columns = ["Name", "Type", "Description"]
         self.setColumnCount(len(columns))
+        self.setColumnWidth(0, 250)
+        self.setColumnWidth(1, 250)
+        self.setColumnWidth(2, 500)
         self.setHorizontalHeaderLabels(columns)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         if proj is None:
             self._proj = Project(ProjectInfo("", "", ""))
         else:
             self._proj = proj
 
+    def activate(self) -> None:
+        self.cellPressed.connect(self._cell_pressed)
 
+    def _cell_pressed(self, row: int, col: int) -> None:
+        if self._pdock is not None:
+            self._pdock.activate(self._proj.properties, row, self.updateCurrentRow)
+
+    def deactivate(self) -> None:
+        with contextlib.suppress(RuntimeError):
+            self.cellPressed.disconnect()
+
+    def insertRow(self, row: int) -> None:
+        self._proj.properties.insert(row, Property("", "", ptype=properties.SecureKeyProperty))
+        super().insertRow(row)
+        self.setRow(row)
+
+    def setRow(self, row: int) -> None:
+        self.setItem(row, 0, QTableWidgetItem(self._proj.properties[row].name))
+        self.setItem(row, 1, QTableWidgetItem(self._proj.properties[row].type_name()))
+        self.setItem(row, 2, QTableWidgetItem(self._proj.properties[row].description))
+
+    def updateCurrentRow(self) -> None:
+        row = self.currentRow()
+        self.setRow(row)
+
+
+####################################################################################################
+# Property Information Pane
+####################################################################################################
+class PropertyDock(QDockWidget):
+    """The property information pane"""
+    def __init__(self, parent: QMainWindow):
+        super().__init__("Property Info", parent=parent)
+        self.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        parent.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self)
+
+        form = QWidget(self)
+        layout = QFormLayout(form)
+        form.setLayout(layout)
+
+        self._name = QLineEdit(form)
+        self._type = QComboBox(form)
+        self._description = QTextEdit(form)
+
+        self._type.addItems([t.name for t in Property.available_types()])
+
+        layout.addRow("Name", self._name)
+        layout.addRow("Type", self._type)
+        layout.addRow("Description", self._description)
+
+        self.setDisabled(True)
+
+        self.setWidget(form)
+
+    def activate(self, props: list[Property], row: int, update: Callable) -> None:
+        self._props = props
+        self._prow = row
+        prop = props[row]
+        self._name.setText(prop.name)
+        self._type.setCurrentText(prop.__class__.__name__)
+        self._description.setText(prop.description)
+
+        self._name.textChanged.connect(lambda text: setattr(prop, "name", text))
+        self._name.textChanged.connect(update)
+        self._type.currentTextChanged.connect(self.setType)
+        self._type.currentTextChanged.connect(update)
+        self._description.textChanged.connect(
+            lambda: setattr(prop, "description", self._description.toPlainText())
+        )
+        self._description.textChanged.connect(update)
+
+        self.setDisabled(False)
+
+    def setType(self, text: str) -> None:
+        ptype = properties.Property.ptype_from_str(text)
+        self._props[self._prow].ptype = ptype
+
+    def deactivate(self) -> None:
+        with contextlib.suppress(RuntimeError):
+            self._name.textChanged.disconnect()
+            self._description.textChanged.disconnect()
+
+        self._name.setText("")
+        self._description.setText("")
+
+        self.setDisabled(True)
+
+
+####################################################################################################
+# Project Information Pane
+####################################################################################################
+def _project_setter(proj: Project, proj_attr: str) -> Callable[[str], None]:
+    def _setter(text: str) -> None:
+        setattr(proj.info, proj_attr, text)
+    return _setter
+
+
+class ProjectInfoDock(QDockWidget):
+
+    _proj_ptr: Project | None
+
+    """The project information pane"""
+    def __init__(self, parent: QMainWindow):
+        super().__init__("Project Info", parent=parent)
+        self.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        parent.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self)
+
+        form = QWidget(self)
+        layout = QFormLayout(form)
+        form.setLayout(layout)
+
+        self._name = QLineEdit(form)
+        self._version = QLineEdit(form)
+        self._description = QTextEdit(form)
+
+        layout.addRow("Project Name", self._name)
+        layout.addRow("Project Version", self._version)
+        layout.addRow("Project Description", self._description)
+
+        self.setDisabled(True)
+
+        self._proj_ptr = None
+
+        self.setWidget(form)
+
+    def clear(self) -> None:
+        self._proj_ptr = None
+
+        self._name.setText("")
+        self._version.setText("")
+        self._description.setText("")
+
+    def setProj(self, proj: Project) -> None:
+        self._proj_ptr = proj
+        self.setFromProj(proj)
+
+        with contextlib.suppress(RuntimeError):
+            self._name.textChanged.disconnect()
+            self._version.textChanged.disconnect()
+            self._description.textChanged.disconnect()
+
+        self._name.textChanged.connect(_project_setter(self._proj_ptr, "name"))
+        self._version.textChanged.connect(_project_setter(self._proj_ptr, "version"))
+        self._description.textChanged.connect(
+            lambda: setattr(self._proj_ptr, "description", self._description.toPlainText())
+        )
+
+    def setFromProj(self, proj: Project) -> None:
+        self._name.setText(proj.info.name)
+        self._version.setText(proj.info.version)
+        self._description.setText(proj.info.description)
+
+
+####################################################################################################
+# Main Windows Support Bars
+####################################################################################################
 class StatusBar(QStatusBar):
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -179,8 +360,12 @@ class MavSecMainWindow(QMainWindow):
         self._create_tabs()
         self._setup_tabs()
 
-        self._create_project_info_pane()
-        self._setup_project_info()
+        self._create_toolbar()
+        self._setup_toolbar()
+
+        self._project = ProjectInfoDock(self)
+
+        self._properties = PropertyDock(self)
 
     # Menu Bar Actions
     ################################################################################################
@@ -193,7 +378,7 @@ class MavSecMainWindow(QMainWindow):
         self._menuBar.file.actionQuit.triggered.connect(self._quit)
 
     def _new_project(self) -> None:
-        tab_idx = self._tabs.addTab(ProjectTab(self._tabs), "New Project")
+        tab_idx = self._tabs.addTab(ProjectTab(self._tabs, None, self._properties), "New Project")
         self._tabs.setCurrentIndex(tab_idx)
 
     def _open_project(self) -> None:
@@ -209,7 +394,7 @@ class MavSecMainWindow(QMainWindow):
         proj = Project.from_file(filename)
         proj.info.proj_file = filename
 
-        proj_tab = ProjectTab(self._tabs, proj)
+        proj_tab = ProjectTab(self._tabs, proj, self._properties)
         tab_idx = self._tabs.addTab(proj_tab, proj.info.name)
         self._tabs.setCurrentIndex(tab_idx)
 
@@ -222,6 +407,9 @@ class MavSecMainWindow(QMainWindow):
             self._save_as_project()
         else:
             tab._proj.to_file(tab._proj.info.proj_file)
+
+        t_idx = self._tabs.currentIndex()
+        self._tabs.setTabText(t_idx, tab._proj.info.name)
 
     def _save_as_project(self) -> None:
         pass
@@ -241,84 +429,70 @@ class MavSecMainWindow(QMainWindow):
     # Tab Actions
     ################################################################################################
     def _setup_tabs(self) -> None:
+        self._prev_tab: None | ProjectTab = None
         self._tabs.currentChanged.connect(self._tab_changed)
 
     def _tab_changed(self, idx: int) -> None:
+        if self._prev_tab is not None:
+            self._prev_tab.deactivate()
+            self._prev_tab = None
+
         tab = self._tabs.widget(idx)
         if not isinstance(tab, ProjectTab):
-            self._project_info_clear()
-            self._project_info_read_only(True)
+            self._project.clear()
+            self._project.setDisabled(True)
             return
 
-        self._project_name.setText(tab._proj.info.name)
-        self._project_version.setText(tab._proj.info.version)
-        self._project_description.setText(tab._proj.info.description)
-        self._project_info_read_only(False)
+        tab.activate()
+        self._project.setDisabled(False)
+        self._project.setProj(tab._proj)
 
-    # Project Info Actions
-    ################################################################################################
-    def _setup_project_info(self) -> None:
-        self._project_name.textChanged.connect(self._project_name_changed)
-        self._project_version.textChanged.connect(self._project_version_changed)
-        self._project_description.textChanged.connect(self._project_description_changed)
+        self._prev_tab = tab
 
-    def _project_name_changed(self, text: str) -> None:
+    def _setup_toolbar(self) -> None:
+        self._new_property.triggered.connect(self._new_property_action)
+        self._remove_property.triggered.connect(self._remove_property_action)
+
+    def _new_property_action(self) -> None:
         tab = self._tabs.currentWidget()
         if not isinstance(tab, ProjectTab):
             return
 
-        tab._proj.info.name = text
+        tab.insertRow(tab.rowCount())
 
-    def _project_version_changed(self, text: str) -> None:
+    def _remove_property_action(self) -> None:
         tab = self._tabs.currentWidget()
         if not isinstance(tab, ProjectTab):
             return
 
-        tab._proj.info.version = text
-
-    def _project_description_changed(self) -> None:
-        tab = self._tabs.currentWidget()
-        if not isinstance(tab, ProjectTab):
-            return
-
-        tab._proj.info.description = self._project_description.toPlainText()
-
-    def _project_info_read_only(self, read_only: bool) -> None:
-        self._project_name.setReadOnly(read_only)
-        self._project_version.setReadOnly(read_only)
-        self._project_description.setReadOnly(read_only)
-
-    def _project_info_clear(self) -> None:
-        self._project_name.setText("")
-        self._project_version.setText("")
-        self._project_description.setText("")
+        tab.removeRow(tab.currentRow())
 
     # GUI Creation
     ################################################################################################
     def _create_tabs(self) -> None:
         self._tabs = QTabWidget(self)
         self._tabs.setObjectName(u"tabs")
+        self._tabs.setTabPosition(QTabWidget.TabPosition.South)
         self.setCentralWidget(self._tabs)
 
-    def _create_project_info_pane(self) -> None:
-        self._left_dock = QDockWidget("Project Info", parent=self)
-        self._left_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._left_dock)
+    def _create_toolbar(self) -> None:
+        self._toolbar = QToolBar("Properties Toolbar", self)
+        self.addToolBar(self._toolbar)
+        self._toolbar.setIconSize(QtCore.QSize(16, 16))
 
-        form = QWidget(self._left_dock)
-        layout = QFormLayout(form)
-        form.setLayout(layout)
+        fpath = pathlib.Path(__file__).parent
 
-        self._project_name = QLineEdit(form)
-        self._project_version = QLineEdit(form)
-        self._project_description = QTextEdit(form)
-        self._project_info_read_only(True)
+        self._new_property = QtGui.QAction(
+                                QtGui.QIcon(str(fpath.joinpath('assets', 'green-plus-hi.png'))),
+                                "&New Property",
+                                self
+                             )
+        self._new_property.setShortcut("Ctrl+Shift+N")
+        self._toolbar.addAction(self._new_property)
 
-        layout.addRow("Project Name", self._project_name)
-        layout.addRow("Project Version", self._project_version)
-        layout.addRow("Project Description", self._project_description)
-
-        self._left_dock.setWidget(form)
+        self._remove_property = QtGui.QAction(
+                                QtGui.QIcon(str(fpath.joinpath('assets', 'red-minus-hi.png'))),
+                                "&Remove Property",
+                                self
+                             )
+        self._toolbar.addAction(self._remove_property)
