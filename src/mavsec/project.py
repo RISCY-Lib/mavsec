@@ -46,6 +46,7 @@ class Project(Schema):
         """
         return cls(
             info=ProjectInfo.from_dict(data["project"]),
+            properties=[Property.from_dict(prop) for prop in data["properties"]],
         )
 
     def to_dict(self) -> dict:
@@ -56,6 +57,7 @@ class Project(Schema):
         """
         return {
             "project": self.info.to_dict(),
+            "properties": [prop.to_dict() for prop in self.properties],
         }
 
     def to_file(self, filename: str | pathlib.Path | None = None) -> None:

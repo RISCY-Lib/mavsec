@@ -17,38 +17,13 @@
 #####################################################################################
 
 from __future__ import annotations
-from typing import ClassVar
+from typing import ClassVar, Any
 
 from dataclasses import dataclass, field
-import enum
+from mavsec.schema import Schema
 
 
 AnyRtlPath = str
-
-
-class SignalType(enum.StrEnum):
-  """The type of the signal of interest"""
-
-  SYSTEM_INPUT = enum.auto()
-  """A system input signal."""
-  SYSTEM_OUTPUT = enum.auto()
-  """A system output signal."""
-  SYSTEM_CLOCK = enum.auto()
-  """A system clock signal."""
-  SYSTEM_RESET = enum.auto()
-  """A system reset signal."""
-  INTERNAL = enum.auto()
-  """An internal signal."""
-
-
-@dataclass
-class Signal:
-  name: str
-  """The name of the signal."""
-  description: str
-  """A brief description of the signal."""
-  location: AnyRtlPath
-  """The RTL location of the signal. Using SystemVerilog syntax."""
 
 
 @dataclass
@@ -58,20 +33,20 @@ class PropertyType():
   """The name of the property type."""
   description: str
   """A brief description of the property type."""
-  meta: list[str] = field(default_factory=list)
+  meta: dict[str, type] = field(default_factory=dict)
   """The information needed to generate the property."""
 
 
 SecureKeyProperty = PropertyType(
   "SecureKey",
   "A property that ensures a given key is stored correctly.",
-  ["key_loc", "key_size", "public_bus"]
+  {"key_loc": AnyRtlPath, "key_size": int, "public_bus": AnyRtlPath}
 )
 
 SecureKeyGenProperty = PropertyType(
   "SecureKeyGen",
   "A property that ensures a given generated key is stored correctly.",
-  ["public_key_loc", "key_size", "public_bus"]
+  {"public_key_loc": AnyRtlPath, "key_size": int, "public_bus": AnyRtlPath}
 )
 
 SecureExternalMemoryProperty = PropertyType(
@@ -91,12 +66,12 @@ FaultTolerantFSMProperty = PropertyType(
 
 
 @dataclass
-class Property():
+class Property(Schema):
   name: str
   """The name of the property."""
   description: str
   """A brief description of the property."""
-  meta: dict[str, str] = field(default_factory=dict)
+  meta: dict[str, Any] = field(default_factory=dict)
   """A dictionary of metadata for the property."""
   ptype: PropertyType | str | None = None
   """The type of the property."""
@@ -138,9 +113,14 @@ class Property():
     raise ValueError(f"Property type {prop} not found.")
 
   @classmethod
-  def from_dict(cls, d: str) -> Property:
+  def from_dict(cls, d: dict) -> Property:
     """Converts the SVP principle to a property."""
-    raise NotImplementedError()
+    return cls(
+      name=d["name"],
+      description=d["description"],
+      meta=d["meta"],
+      ptype=cls.ptype_from_str(d["ptype"])
+    )
 
   @classmethod
   def available_types(cls) -> list[PropertyType]:
@@ -151,3 +131,12 @@ class Property():
   def add_type(cls, ptype: PropertyType) -> None:
     """Adds a property type to the available types."""
     cls.property_types.append(ptype)
+
+  def to_dict(self) -> dict:
+    """Convert the object to a dictionary."""
+    return {
+      "name": self.name,
+      "description": self.description,
+      "meta": self.meta,
+      "ptype": self.ptype.name
+    }

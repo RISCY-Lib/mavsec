@@ -2,3 +2,9 @@ project:
   description: This is an example project
   name: example_project_yaml
   version: 1.0.1
+properties:
+- description: Check that the AES key is secure and cannot be read out on the publicly
+    accessible bus.
+  meta: {}
+  name: AES Key
+  ptype: SecureKey

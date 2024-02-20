@@ -24,7 +24,7 @@ import pathlib
 
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QMenuBar, QMenu, QTableWidget, QDockWidget, QWidget, QFormLayout,
-    QTextEdit, QLineEdit, QTabWidget, QFileDialog, QComboBox, QToolBar, QTableWidgetItem
+    QTextEdit, QLineEdit, QTabWidget, QFileDialog, QComboBox, QToolBar, QTableWidgetItem, QCheckBox
 )
 from PySide6 import QtGui, QtCore
 from PySide6.QtCore import Qt
@@ -71,6 +71,10 @@ class ProjectTab(QTableWidget):
         else:
             self._proj = proj
 
+        for i in range(len(self._proj.properties)):
+            super().insertRow(i)
+            self.setRow(i)
+
     def activate(self) -> None:
         self.cellPressed.connect(self._cell_pressed)
 
@@ -81,6 +85,7 @@ class ProjectTab(QTableWidget):
     def deactivate(self) -> None:
         with contextlib.suppress(RuntimeError):
             self.cellPressed.disconnect()
+        self._pdock.deactivate()
 
     def insertRow(self, row: int) -> None:
         self._proj.properties.insert(row, Property("", "", ptype=properties.SecureKeyProperty))
@@ -110,31 +115,36 @@ class PropertyDock(QDockWidget):
         )
         parent.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self)
 
-        form = QWidget(self)
-        layout = QFormLayout(form)
-        form.setLayout(layout)
+        self._form = QWidget(self)
+        self._layout = QFormLayout(self._form)
+        self._form.setLayout(self._layout)
 
-        self._name = QLineEdit(form)
-        self._type = QComboBox(form)
-        self._description = QTextEdit(form)
+        self._name = QLineEdit(self._form)
+        self._type = QComboBox(self._form)
+        self._description = QTextEdit(self._form)
 
         self._type.addItems([t.name for t in Property.available_types()])
 
-        layout.addRow("Name", self._name)
-        layout.addRow("Type", self._type)
-        layout.addRow("Description", self._description)
+        self._layout.addRow("Name", self._name)
+        self._layout.addRow("Type", self._type)
+        self._layout.addRow("Description", self._description)
 
         self.setDisabled(True)
 
-        self.setWidget(form)
+        self.setWidget(self._form)
 
     def activate(self, props: list[Property], row: int, update: Callable) -> None:
+        self.deactivate()
+
         self._props = props
         self._prow = row
+        self._update = update
         prop = props[row]
         self._name.setText(prop.name)
-        self._type.setCurrentText(prop.__class__.__name__)
+        self._type.setCurrentText(prop.ptype.name)
         self._description.setText(prop.description)
+
+        self.addTypeFields()
 
         self._name.textChanged.connect(lambda text: setattr(prop, "name", text))
         self._name.textChanged.connect(update)
@@ -151,6 +161,9 @@ class PropertyDock(QDockWidget):
         ptype = properties.Property.ptype_from_str(text)
         self._props[self._prow].ptype = ptype
 
+        self.removeTypeFields()
+        self.addTypeFields()
+
     def deactivate(self) -> None:
         with contextlib.suppress(RuntimeError):
             self._name.textChanged.disconnect()
@@ -159,7 +172,50 @@ class PropertyDock(QDockWidget):
         self._name.setText("")
         self._description.setText("")
 
+        self.removeTypeFields()
+
         self.setDisabled(True)
+
+    def removeTypeFields(self) -> None:
+        rows = self._layout.rowCount()
+        for i in range(rows-1, 2, -1):
+            self._layout.removeRow(i)
+
+    def addTypeFields(self) -> None:
+        prop = self._props[self._prow]
+        for meta, mtype in prop.ptype.meta.items():
+            if mtype is bool:
+                cb = QCheckBox(self._form)
+                if meta not in prop.meta:
+                    prop.meta[meta] = False
+                cb.setChecked(prop.meta[meta])
+                self._layout.addRow(meta, cb)
+                cb.stateChanged.connect(lambda state, m=meta: setattr(prop.meta, m, bool(state)))
+            elif mtype is str:
+                le = QLineEdit(self._form)
+                if meta not in prop.meta:
+                    prop.meta[meta] = ""
+                le.setText(prop.meta[meta])
+                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, text))
+                le.textChanged.connect(self._update)
+                self._layout.addRow(meta, le)
+            elif mtype is int:
+                le = QLineEdit(self._form)
+                if meta not in prop.meta:
+                    prop.meta[meta] = 0
+                le.setText(str(prop.meta[meta]))
+                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, int(text)))
+                le.textChanged.connect(self._update)
+                self._layout.addRow(meta, le)
+            elif mtype is properties.AnyRtlPath:
+                le = QLineEdit(self._form)
+                if meta not in prop.meta:
+                    prop.meta[meta] = ""
+                le.setText(prop.meta[meta])
+                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, text))
+                le.textChanged.connect(self._update)
+                le.setPlaceholderText("Path to signal in RTL")
+                self._layout.addRow(meta, le)
 
 
 ####################################################################################################
@@ -467,6 +523,9 @@ class MavSecMainWindow(QMainWindow):
 
         tab.removeRow(tab.currentRow())
 
+    def _check_properties_action(self) -> None:
+        raise NotImplementedError("Check Properties Action not implemented yet.")
+
     # GUI Creation
     ################################################################################################
     def _create_tabs(self) -> None:
@@ -496,3 +555,10 @@ class MavSecMainWindow(QMainWindow):
                                 self
                              )
         self._toolbar.addAction(self._remove_property)
+
+        self._check_properties = QtGui.QAction(
+                                   QtGui.QIcon(str(fpath.joinpath('assets', 'yellow-check-hi.png'))),
+                                   "&Check Properties",
+                                   self
+                                 )
+        self._toolbar.addAction(self._check_properties)
