@@ -5,6 +5,38 @@ project:
 properties:
 - description: Check that the AES key is secure and cannot be read out on the publicly
     accessible bus.
-  meta: {}
+  meta:
+    key_loc: ''
+    key_size: 0
+    public_bus: ''
   name: AES Key
   ptype: SecureKey
+- description: ''
+  meta:
+    key_loc: ''
+    key_size: 0
+    public_bus: ''
+    public_key_loc: ''
+  name: Generated ECC Key
+  ptype: SecureKeyGen
+- description: ''
+  meta:
+    key_loc: ''
+    key_size: 0
+    public_bus: ''
+  name: Secure data transfer to  DRAM
+  ptype: SecureExternalMemory
+- description: Ensure that key data is not leaked on the cache when not in SECURE_MODE=1
+  meta:
+    key_loc: ''
+    key_size: 0
+    public_bus: ''
+  name: Cache Leakage
+  ptype: SecureInternalStorage
+- description: ''
+  meta:
+    key_loc: ''
+    key_size: 0
+    public_bus: ''
+  name: AES FSM
+  ptype: FaultTolerantFSM

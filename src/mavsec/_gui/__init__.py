@@ -142,9 +142,8 @@ class PropertyDock(QDockWidget):
         prop = props[row]
         self._name.setText(prop.name)
         self._type.setCurrentText(prop.ptype.name)
+        self.setType(prop.ptype.name)
         self._description.setText(prop.description)
-
-        self.addTypeFields()
 
         self._name.textChanged.connect(lambda text: setattr(prop, "name", text))
         self._name.textChanged.connect(update)
