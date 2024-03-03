@@ -42,6 +42,8 @@ FILE_FILTERS = [
 ]
 
 
+# TODO: Fix project description not saving
+
 ####################################################################################################
 # Project Tab
 ####################################################################################################
@@ -101,6 +103,9 @@ class ProjectTab(QTableWidget):
         row = self.currentRow()
         self.setRow(row)
 
+    def getProj(self) -> Project:
+        return self._proj
+
 
 ####################################################################################################
 # Property Information Pane
@@ -122,12 +127,14 @@ class PropertyDock(QDockWidget):
         self._name = QLineEdit(self._form)
         self._type = QComboBox(self._form)
         self._description = QTextEdit(self._form)
+        self._preconditions = QTextEdit(self._form)
 
         self._type.addItems([t.name for t in Property.available_types()])
 
         self._layout.addRow("Name", self._name)
         self._layout.addRow("Type", self._type)
         self._layout.addRow("Description", self._description)
+        self._layout.addRow("Preconditions", self._preconditions)
 
         self.setDisabled(True)
 
@@ -153,6 +160,9 @@ class PropertyDock(QDockWidget):
             lambda: setattr(prop, "description", self._description.toPlainText())
         )
         self._description.textChanged.connect(update)
+        self._preconditions.textChanged.connect(
+            lambda: setattr(prop, "preconditions", self._preconditions.toPlainText())
+        )
 
         self.setDisabled(False)
 
@@ -177,7 +187,7 @@ class PropertyDock(QDockWidget):
 
     def removeTypeFields(self) -> None:
         rows = self._layout.rowCount()
-        for i in range(rows-1, 2, -1):
+        for i in range(rows-1, 3, -1):
             self._layout.removeRow(i)
 
     def addTypeFields(self) -> None:
@@ -458,7 +468,7 @@ class MavSecMainWindow(QMainWindow):
         if not isinstance(tab, ProjectTab):
             return
 
-        if tab._proj.info.proj_file is None:
+        if tab.getProj().info.proj_file is None:
             self._save_as_project()
         else:
             tab._proj.to_file(tab._proj.info.proj_file)
@@ -467,7 +477,22 @@ class MavSecMainWindow(QMainWindow):
         self._tabs.setTabText(t_idx, tab._proj.info.name)
 
     def _save_as_project(self) -> None:
-        pass
+        tab = self._tabs.currentWidget()
+        if not isinstance(tab, ProjectTab):
+            return
+
+        filename, ok = QFileDialog.getSaveFileName(
+            self,
+            "Save Project As",
+            ".",
+            ";;".join(FILE_FILTERS),
+        )
+
+        if not ok: return
+
+        tab._proj.info.proj_file = filename
+        tab.getProj().to_file(filename)
+
 
     def _save_all_projects(self) -> None:
         pass

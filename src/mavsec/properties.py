@@ -19,11 +19,18 @@
 from __future__ import annotations
 from typing import ClassVar, Any
 
+import enum
+
 from dataclasses import dataclass, field
 from mavsec.schema import Schema
 
+class SpecialRtlPaths(enum.StrEnum):
+  """Enum for special RTL paths."""
+  OUTPUTS = enum.auto()
+  INPUTS = enum.auto()
 
-AnyRtlPath = str
+
+AnyRtlPath = str | SpecialRtlPaths
 
 
 @dataclass
@@ -56,7 +63,8 @@ SecureExternalMemoryProperty = PropertyType(
 
 SecureInternalStorageProperty = PropertyType(
   "SecureInternalStorage",
-  "A property that ensures a given internal storage is not able to be accessed."
+  "A property that ensures a given internal storage is not able to be accessed.",
+  {"storage_loc": AnyRtlPath, "storage_size": int, "public_bus": AnyRtlPath}
 )
 
 FaultTolerantFSMProperty = PropertyType(
@@ -75,6 +83,8 @@ class Property(Schema):
   """A dictionary of metadata for the property."""
   ptype: PropertyType | str | None = None
   """The type of the property."""
+  preconditions: str | list[str] | None = None
+  """The preconditions for the property."""
 
   property_types: ClassVar[list[PropertyType]] = [
     SecureKeyProperty,
