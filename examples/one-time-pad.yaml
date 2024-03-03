@@ -13,6 +13,9 @@ properties:
     public_bus: '@OUTPUTS'
   name: OTP Key
   ptype: SecureKey
+  preconditions:
+    - 'pprot[2]==0'
+    - 'pprot[1]==0'
 - description: Ensure the OTP Key cannot be overwritten unless the bus is in priviledged
     mode
   meta:
@@ -21,6 +24,8 @@ properties:
     public_bus: '@INPUTS'
   name: OTP Key Integrity
   ptype: SecureKey
+  preconditions:
+    - 'pprot[0]==0'
 - description: Ensure the OTP plain text value is not accessible on the public bus.
   meta:
     public_bus: '@OUTPUTS'
@@ -28,3 +33,4 @@ properties:
     storage_size: 0
   name: 'OTP Plaintext '
   ptype: SecureInternalStorage
+  preconditions: ''
