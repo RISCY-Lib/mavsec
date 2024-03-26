@@ -17,6 +17,17 @@ Welcome to mavsec's documentation!
 
    mavsec
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   project
+   properties
+   gui
+   example
+   license
+   contributors
+
 
 Indices and tables
 ==================

@@ -50,6 +50,12 @@ SecureKeyProperty = PropertyType(
   {"key_loc": AnyRtlPath, "key_size": int, "public_bus": AnyRtlPath}
 )
 
+SecureKeyIntegrityProperty = PropertyType(
+  "SecureKey",
+  "A property that ensures a given key is not overwritten incorrectly.",
+  {"key_loc": AnyRtlPath, "key_size": int, "public_bus": AnyRtlPath}
+)
+
 SecureKeyGenProperty = PropertyType(
   "SecureKeyGen",
   "A property that ensures a given generated key is stored correctly.",
