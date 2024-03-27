@@ -21,7 +21,7 @@ properties:
   meta:
     key_loc: 'key'
     key_size: 0
-    public_bus: '@INPUTS'
+    public_bus: 'pwdata'
   name: OTP Key Integrity
   ptype: SecureKey
   preconditions:

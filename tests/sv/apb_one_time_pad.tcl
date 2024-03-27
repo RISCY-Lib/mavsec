@@ -18,15 +18,12 @@ foreach output [get_design_info -list output] {
 
 # OTP Key Integrity Property
 ####################################################################################################
-foreach input [get_design_info -list input] {
-    check_spv -create -name otp_key_${input}_precond0 -from $input -to key -to_precond pprot\[0\]==0
-}
+check_spv -create -name otp_key_pwdata_precond0 -from pwdata -to key -to_precond pprot\[0\]==0
 
 # OTP Plaintext Property
 ####################################################################################################
 foreach output [get_design_info -list output] {
-    check_spv -create -name otp_plaintext_${output} -from plaintext -to $output
-    check_spv -create -name otp_plaintext_${output} -from plaintext -to $output
+    check_spv -create -name otp_plaintext_${output} -from data -to $output
 }
 
 check_spv -prove

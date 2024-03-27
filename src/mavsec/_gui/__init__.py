@@ -17,22 +17,15 @@
 #####################################################################################
 
 from __future__ import annotations
-from typing import Callable
-
-import contextlib
 import pathlib
 
-from PySide6.QtWidgets import (
-    QMainWindow, QStatusBar, QMenuBar, QMenu, QTableWidget, QDockWidget, QWidget, QFormLayout,
-    QTextEdit, QLineEdit, QTabWidget, QFileDialog, QComboBox, QToolBar, QTableWidgetItem, QCheckBox
-)
+from PySide6.QtWidgets import QMainWindow, QTabWidget, QFileDialog, QToolBar
 from PySide6 import QtGui, QtCore
-from PySide6.QtCore import Qt
 
-from mavsec import _info, properties
-from mavsec.project import Project, ProjectInfo
-from mavsec.properties import Property
+from mavsec.project import Project
 
+from mavsec._gui.proj_tabs import ProjectTab, PropertyDock, ProjectInfoDock
+from mavsec._gui.menus import MenuBar, StatusBar
 
 FILE_FILTERS = [
     "Project (*.yaml *.yml *.toml *.json)",
@@ -43,366 +36,6 @@ FILE_FILTERS = [
 
 
 # TODO: Fix project description not saving
-
-####################################################################################################
-# Project Tab
-####################################################################################################
-class ProjectTab(QTableWidget):
-    """The project information pane"""
-    def __init__(
-                    self,
-                    parent: QWidget,
-                    proj: Project | None = None,
-                    pdock: PropertyDock | None = None
-                ):
-        super().__init__(parent)
-        self.setObjectName(u"properties_table")
-
-        self._pdock = pdock
-
-        columns = ["Name", "Type", "Description"]
-        self.setColumnCount(len(columns))
-        self.setColumnWidth(0, 250)
-        self.setColumnWidth(1, 250)
-        self.setColumnWidth(2, 500)
-        self.setHorizontalHeaderLabels(columns)
-        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-
-        if proj is None:
-            self._proj = Project(ProjectInfo("", "", ""))
-        else:
-            self._proj = proj
-
-        for i in range(len(self._proj.properties)):
-            super().insertRow(i)
-            self.setRow(i)
-
-    def activate(self) -> None:
-        self.cellPressed.connect(self._cell_pressed)
-
-    def _cell_pressed(self, row: int, col: int) -> None:
-        if self._pdock is not None:
-            self._pdock.activate(self._proj.properties, row, self.updateCurrentRow)
-
-    def deactivate(self) -> None:
-        with contextlib.suppress(RuntimeError):
-            self.cellPressed.disconnect()
-        self._pdock.deactivate()
-
-    def insertRow(self, row: int) -> None:
-        self._proj.properties.insert(row, Property("", "", ptype=properties.SecureKeyProperty))
-        super().insertRow(row)
-        self.setRow(row)
-
-    def setRow(self, row: int) -> None:
-        self.setItem(row, 0, QTableWidgetItem(self._proj.properties[row].name))
-        self.setItem(row, 1, QTableWidgetItem(self._proj.properties[row].type_name()))
-        self.setItem(row, 2, QTableWidgetItem(self._proj.properties[row].description))
-
-    def updateCurrentRow(self) -> None:
-        row = self.currentRow()
-        self.setRow(row)
-
-    def getProj(self) -> Project:
-        return self._proj
-
-
-####################################################################################################
-# Property Information Pane
-####################################################################################################
-class PropertyDock(QDockWidget):
-    """The property information pane"""
-    def __init__(self, parent: QMainWindow):
-        super().__init__("Property Info", parent=parent)
-        self.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        parent.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self)
-
-        self._form = QWidget(self)
-        self._layout = QFormLayout(self._form)
-        self._form.setLayout(self._layout)
-
-        self._name = QLineEdit(self._form)
-        self._type = QComboBox(self._form)
-        self._description = QTextEdit(self._form)
-        self._preconditions = QTextEdit(self._form)
-
-        self._type.addItems([t.name for t in Property.available_types()])
-
-        self._layout.addRow("Name", self._name)
-        self._layout.addRow("Type", self._type)
-        self._layout.addRow("Description", self._description)
-        self._layout.addRow("Preconditions", self._preconditions)
-
-        self.setDisabled(True)
-
-        self.setWidget(self._form)
-
-    def activate(self, props: list[Property], row: int, update: Callable) -> None:
-        self.deactivate()
-
-        self._props = props
-        self._prow = row
-        self._update = update
-        prop = props[row]
-        self._name.setText(prop.name)
-        self._type.setCurrentText(prop.ptype.name)
-        self.setType(prop.ptype.name)
-        self._description.setText(prop.description)
-
-        self._name.textChanged.connect(lambda text: setattr(prop, "name", text))
-        self._name.textChanged.connect(update)
-        self._type.currentTextChanged.connect(self.setType)
-        self._type.currentTextChanged.connect(update)
-        self._description.textChanged.connect(
-            lambda: setattr(prop, "description", self._description.toPlainText())
-        )
-        self._description.textChanged.connect(update)
-        self._preconditions.textChanged.connect(
-            lambda: setattr(prop, "preconditions", self._preconditions.toPlainText())
-        )
-
-        self.setDisabled(False)
-
-    def setType(self, text: str) -> None:
-        ptype = properties.Property.ptype_from_str(text)
-        self._props[self._prow].ptype = ptype
-
-        self.removeTypeFields()
-        self.addTypeFields()
-
-    def deactivate(self) -> None:
-        with contextlib.suppress(RuntimeError):
-            self._name.textChanged.disconnect()
-            self._description.textChanged.disconnect()
-
-        self._name.setText("")
-        self._description.setText("")
-
-        self.removeTypeFields()
-
-        self.setDisabled(True)
-
-    def removeTypeFields(self) -> None:
-        rows = self._layout.rowCount()
-        for i in range(rows-1, 3, -1):
-            self._layout.removeRow(i)
-
-    def addTypeFields(self) -> None:
-        prop = self._props[self._prow]
-        for meta, mtype in prop.ptype.meta.items():
-            if mtype is bool:
-                cb = QCheckBox(self._form)
-                if meta not in prop.meta:
-                    prop.meta[meta] = False
-                cb.setChecked(prop.meta[meta])
-                self._layout.addRow(meta, cb)
-                cb.stateChanged.connect(lambda state, m=meta: setattr(prop.meta, m, bool(state)))
-            elif mtype is str:
-                le = QLineEdit(self._form)
-                if meta not in prop.meta:
-                    prop.meta[meta] = ""
-                le.setText(prop.meta[meta])
-                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, text))
-                le.textChanged.connect(self._update)
-                self._layout.addRow(meta, le)
-            elif mtype is int:
-                le = QLineEdit(self._form)
-                if meta not in prop.meta:
-                    prop.meta[meta] = 0
-                le.setText(str(prop.meta[meta]))
-                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, int(text)))
-                le.textChanged.connect(self._update)
-                self._layout.addRow(meta, le)
-            elif mtype is properties.AnyRtlPath:
-                le = QLineEdit(self._form)
-                if meta not in prop.meta:
-                    prop.meta[meta] = ""
-                le.setText(prop.meta[meta])
-                le.textChanged.connect(lambda text, m=meta: setattr(prop.meta, m, text))
-                le.textChanged.connect(self._update)
-                le.setPlaceholderText("Path to signal in RTL")
-                self._layout.addRow(meta, le)
-
-
-####################################################################################################
-# Project Information Pane
-####################################################################################################
-def _project_setter(proj: Project, proj_attr: str) -> Callable[[str], None]:
-    def _setter(text: str) -> None:
-        setattr(proj.info, proj_attr, text)
-    return _setter
-
-
-class ProjectInfoDock(QDockWidget):
-
-    _proj_ptr: Project | None
-
-    """The project information pane"""
-    def __init__(self, parent: QMainWindow):
-        super().__init__("Project Info", parent=parent)
-        self.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable
-        )
-        parent.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self)
-
-        form = QWidget(self)
-        layout = QFormLayout(form)
-        form.setLayout(layout)
-
-        self._name = QLineEdit(form)
-        self._version = QLineEdit(form)
-        self._description = QTextEdit(form)
-
-        layout.addRow("Project Name", self._name)
-        layout.addRow("Project Version", self._version)
-        layout.addRow("Project Description", self._description)
-
-        self.setDisabled(True)
-
-        self._proj_ptr = None
-
-        self.setWidget(form)
-
-    def clear(self) -> None:
-        self._proj_ptr = None
-
-        self._name.setText("")
-        self._version.setText("")
-        self._description.setText("")
-
-    def setProj(self, proj: Project) -> None:
-        self._proj_ptr = proj
-        self.setFromProj(proj)
-
-        with contextlib.suppress(RuntimeError):
-            self._name.textChanged.disconnect()
-            self._version.textChanged.disconnect()
-            self._description.textChanged.disconnect()
-
-        self._name.textChanged.connect(_project_setter(self._proj_ptr, "name"))
-        self._version.textChanged.connect(_project_setter(self._proj_ptr, "version"))
-        self._description.textChanged.connect(
-            lambda: setattr(self._proj_ptr, "description", self._description.toPlainText())
-        )
-
-    def setFromProj(self, proj: Project) -> None:
-        self._name.setText(proj.info.name)
-        self._version.setText(proj.info.version)
-        self._description.setText(proj.info.description)
-
-
-####################################################################################################
-# Main Windows Support Bars
-####################################################################################################
-class StatusBar(QStatusBar):
-    def __init__(self, parent: QWidget):
-        super().__init__(parent)
-        self.setObjectName(u"statusBar")
-
-
-class MenuFile(QMenu):
-    def __init__(self, parent: QWidget):
-        super().__init__(parent)
-        self.setObjectName(u"menuFile")
-        self.setTitle("File")
-
-        self.actionNew = QtGui.QAction(parent)
-        self.actionNew.setObjectName(u"actionNew")
-        self.actionNew.setText(u"New")
-        self.actionNew.setShortcut("Ctrl+N")
-        self.addAction(self.actionNew)
-
-        self.actionOpen = QtGui.QAction(parent)
-        self.actionOpen.setObjectName(u"actionOpen")
-        self.actionOpen.setText(u"Open")
-        self.actionOpen.setShortcut("Ctrl+O")
-        self.addAction(self.actionOpen)
-
-        self.actionSave = QtGui.QAction(parent)
-        self.actionSave.setObjectName(u"actionSave")
-        self.actionSave.setText(u"Save")
-        self.actionSave.setShortcut("Ctrl+S")
-        self.addAction(self.actionSave)
-
-        self.actionSaveAs = QtGui.QAction(parent)
-        self.actionSaveAs.setObjectName(u"actionSaveAs")
-        self.actionSaveAs.setText(u"Save As")
-        self.actionSaveAs.setShortcut("Ctrl+Shift+S")
-        self.addAction(self.actionSaveAs)
-
-        self.actionSaveAll = QtGui.QAction(parent)
-        self.actionSaveAll.setObjectName(u"actionSaveAll")
-        self.actionSaveAll.setText(u"Save All")
-        self.actionSaveAll.setShortcut("Ctrl+Alt+S")
-        self.addAction(self.actionSaveAll)
-
-        self.addSeparator()
-
-        self.actionExport = QtGui.QAction(parent)
-        self.actionExport.setObjectName(u"actionExport")
-        self.actionExport.setText(u"Export")
-        self.actionExport.setShortcut("Ctrl+E")
-        self.addAction(self.actionExport)
-
-        self.addSeparator()
-
-        self.actionClose = QtGui.QAction(parent)
-        self.actionClose.setObjectName(u"actionClose")
-        self.actionClose.setText(u"Close")
-        self.actionClose.setShortcut("Ctrl+W")
-        self.addAction(self.actionClose)
-
-        self.actionQuit = QtGui.QAction(parent)
-        self.actionQuit.setObjectName(u"actionQuit")
-        self.actionQuit.setText(u"Quit")
-        self.actionQuit.setShortcut("Alt+F4")
-        self.addAction(self.actionQuit)
-
-
-class MenuEdit(QMenu):
-    def __init__(self, parent: QWidget):
-        super().__init__(parent)
-        self.setObjectName(u"menuEdit")
-        self.setTitle("Edit")
-
-
-class MenuHelp(QMenu):
-    def __init__(self, parent: QWidget):
-        super().__init__(parent)
-        self.setObjectName(u"menuHelp")
-        self.setTitle("Help")
-
-        self.actionVersion = QtGui.QAction(parent)
-        self.actionVersion.setObjectName(u"actionVersion")
-        self.actionVersion.setText(f"Version: {_info.__version__}")
-        self.addAction(self.actionVersion)
-
-        # TODO Link to Documentation
-        self.actionDocumentation = QtGui.QAction(parent)
-        self.actionDocumentation.setObjectName(u"actionDocumentation")
-        self.actionDocumentation.setText(u"Documentation")
-        self.addAction(self.actionDocumentation)
-
-
-class MenuBar(QMenuBar):
-    def __init__(self, parent: QWidget):
-        super().__init__(parent)
-        self.setObjectName(u"menuBar")
-        self.setGeometry(0, 0, 800, 22)
-
-        self.file = MenuFile(self)
-        self.addAction(self.file.menuAction())
-
-        self.edit = MenuEdit(self)
-        self.addAction(self.edit.menuAction())
-
-        self.help = MenuHelp(self)
-        self.addAction(self.help.menuAction())
-
 
 ################################################################################################
 # Main Window
@@ -468,10 +101,7 @@ class MavSecMainWindow(QMainWindow):
         if not isinstance(tab, ProjectTab):
             return
 
-        if tab.getProj().info.proj_file is None:
-            self._save_as_project()
-        else:
-            tab._proj.to_file(tab._proj.info.proj_file)
+        self.save_tab(tab)
 
         t_idx = self._tabs.currentIndex()
         self._tabs.setTabText(t_idx, tab._proj.info.name)
@@ -481,30 +111,39 @@ class MavSecMainWindow(QMainWindow):
         if not isinstance(tab, ProjectTab):
             return
 
+        self.save_tab_as(tab)
+
+    def _save_all_projects(self) -> None:
+        for tab in range(self._tabs.count()):
+            tab = self._tabs.widget(tab)
+            if not isinstance(tab, ProjectTab):
+                continue
+
+            self.save_tab(tab)
+
+    def _export_project(self) -> None:
+        tab = self._tabs.currentWidget()
+        if not isinstance(tab, ProjectTab):
+            return
+
         filename, ok = QFileDialog.getSaveFileName(
             self,
-            "Save Project As",
+            "Export Project",
             ".",
-            ";;".join(FILE_FILTERS),
+            "TCL (*.tcl)",
         )
 
         if not ok: return
 
-        tab._proj.info.proj_file = filename
-        tab.getProj().to_file(filename)
-
-
-    def _save_all_projects(self) -> None:
-        pass
-
-    def _export_project(self) -> None:
-        pass
+        tab.getProj().to_tcl(filename)
 
     def _close_project(self) -> None:
         self._tabs.removeTab(self._tabs.currentIndex())
 
     def _quit(self) -> None:
-        pass
+        self._save_all_projects()
+
+        self.close()
 
     # Tab Actions
     ################################################################################################
@@ -586,3 +225,24 @@ class MavSecMainWindow(QMainWindow):
                                    self
                                  )
         self._toolbar.addAction(self._check_properties)
+
+    # Helper Functions
+    ################################################################################################
+    def save_tab(self, tab: ProjectTab) -> None:
+        if tab.getProj().info.proj_file is None:
+            self.save_tab_as(tab)
+        else:
+            tab._proj.to_file(tab._proj.info.proj_file)
+
+    def save_tab_as(self, tab: ProjectTab) -> None:
+        filename, ok = QFileDialog.getSaveFileName(
+            self,
+            "Save Project As",
+            ".",
+            ";;".join(FILE_FILTERS),
+        )
+
+        if not ok: return
+
+        tab._proj.info.proj_file = filename
+        tab.getProj().to_file(filename)
