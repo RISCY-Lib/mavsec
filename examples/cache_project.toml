@@ -1,0 +1,6 @@
+properties = []
+
+[project]
+name = "Cache Project"
+version = "1.0.0"
+description = "Test cache project description."

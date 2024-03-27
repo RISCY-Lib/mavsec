@@ -283,7 +283,7 @@ class ProjectInfoDock(QDockWidget):
         self._name.textChanged.connect(_project_setter(self._proj_ptr, "name"))
         self._version.textChanged.connect(_project_setter(self._proj_ptr, "version"))
         self._description.textChanged.connect(
-            lambda: setattr(self._proj_ptr, "description", self._description.toPlainText())
+            lambda: _project_setter(self._proj_ptr, "description")(self._description.toPlainText())
         )
 
     def set_from_proj(self, proj: Project) -> None:

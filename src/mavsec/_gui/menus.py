@@ -121,7 +121,6 @@ class MenuHelp(QMenu):
         self.actionVersion.setEnabled(False)
         self.addAction(self.actionVersion)
 
-        # TODO Link to Documentation
         self.actionDocumentation = QtGui.QAction(parent)
         self.actionDocumentation.setObjectName(u"actionDocumentation")
         self.actionDocumentation.setText(u"Documentation")

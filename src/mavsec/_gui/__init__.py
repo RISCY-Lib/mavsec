@@ -22,6 +22,8 @@ import pathlib
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QFileDialog, QToolBar
 from PySide6 import QtGui, QtCore
 
+import webbrowser
+
 from mavsec.project import Project
 
 from mavsec._gui.proj_tabs import ProjectTab, PropertyDock, ProjectInfoDock
@@ -34,8 +36,6 @@ FILE_FILTERS = [
     "JSON (*.json)"
 ]
 
-
-# TODO: Fix project description not saving
 
 ################################################################################################
 # Main Window
@@ -74,6 +74,7 @@ class MavSecMainWindow(QMainWindow):
         self._menuBar.file.actionExport.triggered.connect(self._export_project)
         self._menuBar.file.actionClose.triggered.connect(self._close_project)
         self._menuBar.file.actionQuit.triggered.connect(self._quit)
+        self._menuBar.help.actionDocumentation.triggered.connect(self._open_documentation)
 
     def _new_project(self) -> None:
         tab_idx = self._tabs.addTab(ProjectTab(self._tabs, None, self._properties), "New Project")
@@ -145,6 +146,9 @@ class MavSecMainWindow(QMainWindow):
         self._save_all_projects()
 
         self.close()
+
+    def _open_documentation(self) -> None:
+        webbrowser.open("https://mavsec.readthedocs.io/en/latest/")
 
     # Tab Actions
     ################################################################################################
