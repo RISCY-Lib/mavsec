@@ -1,4 +1,6 @@
-# MavSec
+MavSec
+======
+
 A tool for the creation of JasperGold SVP principle tcl files.
 
 [![Tests](https://github.com/allRisc/mavsec/actions/workflows/test.yml/badge.svg)](https://github.com/allRisc/mavsec/actions/workflows/test.yml)

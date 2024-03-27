@@ -72,3 +72,4 @@ dev = [
     "flake8", "mypy", "tox", "pytest", "setuptools", "types-PyYAML",
     "sphinx", "sphinx-rtd-theme"
 ]
+docs = ['sphinx', 'sphinx-rtd-theme']
