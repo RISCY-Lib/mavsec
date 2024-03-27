@@ -16,5 +16,29 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
 
-__version__: str = "0.0.1a3"
-__author__: str = "RISCY-Lib Contributors"
+from __future__ import annotations
+
+from PySide6 import QtWidgets
+import sys
+from mavsec._gui import MavSecMainWindow
+
+import re
+
+#####################################################################################
+# Version Information
+#####################################################################################
+from mavsec._info import __version__
+
+version_info = [int(x) if x.isdigit() else x for x in re.split(r"\.|-", __version__)]
+
+
+#####################################################################################
+# GUI Entry Point
+#####################################################################################
+def gui():
+    app = QtWidgets.QApplication(sys.argv)
+
+    window = MavSecMainWindow()
+    window.show()
+
+    sys.exit(app.exec())
