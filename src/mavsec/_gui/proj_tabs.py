@@ -17,14 +17,13 @@
 #####################################################################################
 
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, override
 
 import contextlib
-import pathlib
 
 from PySide6.QtWidgets import (
-    QMainWindow, QStatusBar, QMenuBar, QMenu, QTableWidget, QDockWidget, QWidget, QFormLayout,
-    QTextEdit, QLineEdit, QTabWidget, QFileDialog, QComboBox, QToolBar, QTableWidgetItem, QCheckBox
+    QMainWindow, QTableWidget, QDockWidget, QWidget, QFormLayout,
+    QTextEdit, QLineEdit, QComboBox, QTableWidgetItem, QCheckBox
 )
 from PySide6.QtCore import Qt
 
@@ -64,35 +63,38 @@ class ProjectTab(QTableWidget):
 
         for i in range(len(self._proj.properties)):
             super().insertRow(i)
-            self.setRow(i)
+            self.set_row(i)
 
     def activate(self) -> None:
         self.cellPressed.connect(self._cell_pressed)
 
     def _cell_pressed(self, row: int, col: int) -> None:
         if self._pdock is not None:
-            self._pdock.activate(self._proj.properties, row, self.updateCurrentRow)
+            self._pdock.activate(self._proj.properties, row, self.update_current_row)
 
     def deactivate(self) -> None:
         with contextlib.suppress(RuntimeError):
             self.cellPressed.disconnect()
-        self._pdock.deactivate()
 
-    def insertRow(self, row: int) -> None:
+        if self._pdock is not None:
+            self._pdock.deactivate()
+
+    @override
+    def insertRow(self, row: int) -> None:  # noqa: N802 this is a parent class method
         self._proj.properties.insert(row, Property("", "", ptype=properties.SecureKeyProperty))
         super().insertRow(row)
-        self.setRow(row)
+        self.set_row(row)
 
-    def setRow(self, row: int) -> None:
+    def set_row(self, row: int) -> None:
         self.setItem(row, 0, QTableWidgetItem(self._proj.properties[row].name))
         self.setItem(row, 1, QTableWidgetItem(self._proj.properties[row].type_name()))
         self.setItem(row, 2, QTableWidgetItem(self._proj.properties[row].description))
 
-    def updateCurrentRow(self) -> None:
+    def update_current_row(self) -> None:
         row = self.currentRow()
-        self.setRow(row)
+        self.set_row(row)
 
-    def getProj(self) -> Project:
+    def get_proj(self) -> Project:
         return self._proj
 
 
@@ -137,13 +139,13 @@ class PropertyDock(QDockWidget):
         self._update = update
         prop = props[row]
         self._name.setText(prop.name)
-        self._type.setCurrentText(prop.ptype.name)
-        self.setType(prop.ptype.name)
+        self._type.setCurrentText(prop.type_name())
+        self.set_type(prop.type_name())
         self._description.setText(prop.description)
 
         self._name.textChanged.connect(lambda text: setattr(prop, "name", text))
         self._name.textChanged.connect(update)
-        self._type.currentTextChanged.connect(self.setType)
+        self._type.currentTextChanged.connect(self.set_type)
         self._type.currentTextChanged.connect(update)
         self._description.textChanged.connect(
             lambda: setattr(prop, "description", self._description.toPlainText())
@@ -155,12 +157,12 @@ class PropertyDock(QDockWidget):
 
         self.setDisabled(False)
 
-    def setType(self, text: str) -> None:
+    def set_type(self, text: str) -> None:
         ptype = properties.Property.ptype_from_str(text)
         self._props[self._prow].ptype = ptype
 
-        self.removeTypeFields()
-        self.addTypeFields()
+        self.remove_type_fields()
+        self.add_type_fields()
 
     def deactivate(self) -> None:
         with contextlib.suppress(RuntimeError):
@@ -170,17 +172,23 @@ class PropertyDock(QDockWidget):
         self._name.setText("")
         self._description.setText("")
 
-        self.removeTypeFields()
+        self.remove_type_fields()
 
         self.setDisabled(True)
 
-    def removeTypeFields(self) -> None:
+    def remove_type_fields(self) -> None:
         rows = self._layout.rowCount()
         for i in range(rows-1, 3, -1):
             self._layout.removeRow(i)
 
-    def addTypeFields(self) -> None:
+    def add_type_fields(self) -> None:
         prop = self._props[self._prow]
+
+        if prop.ptype is None:
+            return
+        elif isinstance(prop.ptype, str):
+            prop.ptype = properties.PropertyType.get_type(prop.ptype)
+
         for meta, mtype in prop.ptype.meta.items():
             if mtype is bool:
                 cb = QCheckBox(self._form)
@@ -263,9 +271,9 @@ class ProjectInfoDock(QDockWidget):
         self._version.setText("")
         self._description.setText("")
 
-    def setProj(self, proj: Project) -> None:
+    def set_proj(self, proj: Project) -> None:
         self._proj_ptr = proj
-        self.setFromProj(proj)
+        self.set_from_proj(proj)
 
         with contextlib.suppress(RuntimeError):
             self._name.textChanged.disconnect()
@@ -278,7 +286,7 @@ class ProjectInfoDock(QDockWidget):
             lambda: setattr(self._proj_ptr, "description", self._description.toPlainText())
         )
 
-    def setFromProj(self, proj: Project) -> None:
+    def set_from_proj(self, proj: Project) -> None:
         self._name.setText(proj.info.name)
         self._version.setText(proj.info.version)
         self._description.setText(proj.info.description)

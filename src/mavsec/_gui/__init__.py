@@ -53,7 +53,7 @@ class MavSecMainWindow(QMainWindow):
 
         self._menuBar = MenuBar(self)
         self.setMenuBar(self._menuBar)
-        self._setupMenuBar()
+        self._setup_menu_bar()
 
         self._create_tabs()
         self._setup_tabs()
@@ -67,7 +67,7 @@ class MavSecMainWindow(QMainWindow):
 
     # Menu Bar Actions
     ################################################################################################
-    def _setupMenuBar(self) -> None:
+    def _setup_menu_bar(self) -> None:
         self._menuBar.file.actionNew.triggered.connect(self._new_project)
         self._menuBar.file.actionOpen.triggered.connect(self._open_project)
         self._menuBar.file.actionSave.triggered.connect(self._save_project)
@@ -114,8 +114,8 @@ class MavSecMainWindow(QMainWindow):
         self.save_tab_as(tab)
 
     def _save_all_projects(self) -> None:
-        for tab in range(self._tabs.count()):
-            tab = self._tabs.widget(tab)
+        for tab_idx in range(self._tabs.count()):
+            tab = self._tabs.widget(tab_idx)
             if not isinstance(tab, ProjectTab):
                 continue
 
@@ -133,9 +133,10 @@ class MavSecMainWindow(QMainWindow):
             "TCL (*.tcl)",
         )
 
-        if not ok: return
+        if not ok:
+            return
 
-        tab.getProj().to_tcl(filename)
+        tab.get_proj().to_tcl(filename)
 
     def _close_project(self) -> None:
         self._tabs.removeTab(self._tabs.currentIndex())
@@ -164,7 +165,7 @@ class MavSecMainWindow(QMainWindow):
 
         tab.activate()
         self._project.setDisabled(False)
-        self._project.setProj(tab._proj)
+        self._project.set_proj(tab._proj)
 
         self._prev_tab = tab
 
@@ -213,14 +214,16 @@ class MavSecMainWindow(QMainWindow):
         self._toolbar.addAction(self._new_property)
 
         self._remove_property = QtGui.QAction(
-                                QtGui.QIcon(str(fpath.joinpath('assets', 'red-minus-hi.png'))),
-                                "&Remove Property",
-                                self
-                             )
+                                    QtGui.QIcon(str(fpath.joinpath('assets', 'red-minus-hi.png'))),
+                                    "&Remove Property",
+                                    self
+                                )
         self._toolbar.addAction(self._remove_property)
 
         self._check_properties = QtGui.QAction(
-                                   QtGui.QIcon(str(fpath.joinpath('assets', 'yellow-check-hi.png'))),
+                                   QtGui.QIcon(str(
+                                       fpath.joinpath('assets', 'yellow-check-hi.png'))
+                                   ),
                                    "&Check Properties",
                                    self
                                  )
@@ -229,7 +232,7 @@ class MavSecMainWindow(QMainWindow):
     # Helper Functions
     ################################################################################################
     def save_tab(self, tab: ProjectTab) -> None:
-        if tab.getProj().info.proj_file is None:
+        if tab.get_proj().info.proj_file is None:
             self.save_tab_as(tab)
         else:
             tab._proj.to_file(tab._proj.info.proj_file)
@@ -242,7 +245,8 @@ class MavSecMainWindow(QMainWindow):
             ";;".join(FILE_FILTERS),
         )
 
-        if not ok: return
+        if not ok:
+            return
 
         tab._proj.info.proj_file = filename
-        tab.getProj().to_file(filename)
+        tab.get_proj().to_file(filename)

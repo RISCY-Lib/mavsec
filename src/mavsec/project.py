@@ -82,6 +82,10 @@ class Project(Schema):
         else:
             raise ValueError(f"Unsupported file type: {filepath.suffix}")
 
+    def to_tcl(self, filename: str | pathlib.Path | None = None) -> None:
+        """Write the object to a file."""
+        raise NotImplementedError()
+
 
 @dataclass
 class ProjectInfo(Schema):

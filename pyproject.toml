@@ -69,7 +69,9 @@ mavsec = "mavsec:gui"
 
 [project.optional-dependencies]
 dev = [
-    "flake8", "mypy", "tox", "pytest", "setuptools", "types-PyYAML",
+    "flake8", "pep8-naming",
+    "mypy", "types-PyYAML",
+    "tox", "pytest", "setuptools",
     "sphinx", "sphinx-rtd-theme"
 ]
 docs = ['sphinx', 'sphinx-rtd-theme']

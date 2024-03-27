@@ -17,12 +17,13 @@
 #####################################################################################
 
 from __future__ import annotations
-from typing import ClassVar, Any
+from typing import ClassVar, Any, TypeAlias
 
 import enum
 
 from dataclasses import dataclass, field
 from mavsec.schema import Schema
+
 
 class SpecialRtlPaths(enum.StrEnum):
   """Enum for special RTL paths."""
@@ -40,8 +41,23 @@ class PropertyType():
   """The name of the property type."""
   description: str
   """A brief description of the property type."""
-  meta: dict[str, type] = field(default_factory=dict)
+  meta: dict[str, type | TypeAlias] = field(default_factory=dict)
   """The information needed to generate the property."""
+
+  property_types: ClassVar[dict[str, PropertyType]] = {}
+
+  def __post_init__(self):
+    if self.name in self.property_types:
+      raise ValueError(f"Property type {self.name} already exists.")
+
+    self.property_types[self.name] = self
+
+  @classmethod
+  def get_type(cls, name: str) -> PropertyType:
+    """Gets a property type by name."""
+    if name not in cls.property_types:
+      raise ValueError(f"Property type {name} not found.")
+    return cls.property_types[name]
 
 
 SecureKeyProperty = PropertyType(
@@ -150,9 +166,11 @@ class Property(Schema):
 
   def to_dict(self) -> dict:
     """Convert the object to a dictionary."""
-    return {
-      "name": self.name,
-      "description": self.description,
-      "meta": self.meta,
-      "ptype": self.ptype.name
-    }
+    ret_val = {
+        "name": self.name,
+        "description": self.description,
+        "meta": self.meta,
+        "ptype": self.type_name()
+      }
+
+    return ret_val
