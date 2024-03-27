@@ -20,5 +20,6 @@ Releases are published automatically when a tag is pushed to GitHub.
   git tag -a $RELEASE -m "Version $RELEASE"
 
   # Push
+  git push
   git push --tags
 ```
