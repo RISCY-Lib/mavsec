@@ -3,7 +3,6 @@
 - [Developer README](#developer-readme)
   - [Releasing](#releasing)
 
-
 ## Releasing
 
 Releases are published automatically when a tag is pushed to GitHub.
