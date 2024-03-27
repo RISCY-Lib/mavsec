@@ -16,9 +16,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #####################################################################################
 
-import mavsec
+from mavsec import _info
 
 
 def test_import():
-    assert isinstance(mavsec.__version__, str)
-    assert isinstance(mavsec.__author__, str)
+    assert isinstance(_info.__version__, str)
+    assert isinstance(_info.__author__, str)
